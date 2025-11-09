@@ -1,0 +1,13 @@
+{
+    "className": "Folder",
+    "children": [
+        {
+            "name": "CoinCollect",
+            "className": "Sound",
+            "properties": {
+                "SoundId": "rbxassetid://1169806635",
+                "Volume": 1.0
+            }
+        }
+    ]
+}

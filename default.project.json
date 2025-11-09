@@ -1,0 +1,32 @@
+{
+  "name": "purple-coins-challenge",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Modules": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true,
+
+        "PurpleCoins": {
+          "$path": "src/ReplicatedStorage/PurpleCoins"
+        }
+      }
+    },
+
+    "ServerScriptService": {
+      "$path": "src/ServerScriptService",
+      "$ignoreUnknownInstances": true
+    },
+
+    "Workspace": {
+      "_Workspace": {
+        "$className": "Folder",
+
+        "CoinsFolder": {
+          "$className": "Folder"
+        }
+      }
+    }
+  }
+}
