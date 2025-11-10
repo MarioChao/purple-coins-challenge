@@ -1,5 +1,15 @@
 # Changelogs
 
+## [v0.0.1] User interface + Small fixes | 2025/11/10
+
+Added a user interface:
+- Displays current score / target score.
+- Nino Nakano as the default icon.
+
+Made the collect coin sound play from `workspace` (2D sound) instead of from the coin part (3D sound).
+
+... among other small changes.
+
 ## [v0.0.0] Coin & PurpleCoins module + Sample script | 2025/11/09
 
 First commit!

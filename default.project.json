@@ -11,12 +11,28 @@
         "PurpleCoins": {
           "$path": "src/ReplicatedStorage/PurpleCoins"
         }
+      },
+
+      "RemoteEvents": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true,
+
+        "PurpleCoinsRemoteEvent": {
+          "$className": "RemoteEvent"
+        }
       }
     },
 
     "ServerScriptService": {
       "$path": "src/ServerScriptService",
       "$ignoreUnknownInstances": true
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "src/StarterPlayerScripts",
+        "$ignoreUnknownInstances": true
+      }
     },
 
     "Workspace": {

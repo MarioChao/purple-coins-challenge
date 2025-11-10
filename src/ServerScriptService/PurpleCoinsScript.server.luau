@@ -1,6 +1,6 @@
 --!strict
 
--- Coin Script
+-- Purple Coins Script (server)
 
 
 ---------- Services ----------
@@ -20,6 +20,9 @@ local Constants = {}
 
 Constants.CoinsFolder = workspace._Workspace.CoinsFolder
 
+Constants.PurpleCoinsRemoteEvent = ReplicatedStorage.RemoteEvents.PurpleCoinsRemoteEvent
+Constants.onScoreChangeModeString = "On Score Change"
+
 table.freeze(Constants)
 
 
@@ -34,6 +37,14 @@ Globals.player_evaluatedScore = {}
 local onServerStart
 local startPurpleCoinsChallenge
 local evaluatePlayerStateFromScore
+local onPlayerWin
+
+
+----- Win functions -----
+
+onPlayerWin = function(player: Player)
+    -- Award badge, etc...
+end
 
 
 ----- Challenge functions -----
@@ -53,7 +64,9 @@ startPurpleCoinsChallenge = function()
     while true do
         for _, player in Players:GetPlayers() do
             local score = wegas:getScore_player(player)
-            evaluatePlayerStateFromScore(player, score, wegas)
+            task.defer(function()
+                evaluatePlayerStateFromScore(player, score, wegas)
+            end)
         end
         task.wait()
     end
@@ -63,12 +76,13 @@ evaluatePlayerStateFromScore = function(player: Player, score: number, purpleCoi
     if Globals.player_evaluatedScore[player] == score then return end
     Globals.player_evaluatedScore[player] = score
 
-    if score == 10 then
-        print(`[Purple Coins Challenge]: Player {player.Name} collected 10 coins!`)
-    elseif score == #purpleCoins.storedCoins then
+    Constants.PurpleCoinsRemoteEvent:FireClient(player, Constants.onScoreChangeModeString, score, #purpleCoins.storedCoins)
+
+    if score == #purpleCoins.storedCoins then
         print(`[Purple Coins Challenge]: Player {player.Name} won!`)
-        task.wait(3)
-        purpleCoins:unclaimAllCoins_player(player)
+        task.wait(5)
+        -- purpleCoins:unclaimAllCoins_player(player)
+        onPlayerWin(player)
     end
 end
 

@@ -21,6 +21,7 @@ local getPartInitialTransparency
 local updateTransparency
 local setDefaultTransparency
 local playSoundFromPart
+local playSoundFromWorkspace
 
 
 ----- Visual functions -----
@@ -54,6 +55,16 @@ playSoundFromPart = function(part: BasePart, sound: Sound)
     newSound:Play()
 end
 
+playSoundFromWorkspace = function(sound: Sound)
+    local newSound = sound:Clone()
+    newSound.Parent = workspace
+    newSound.TimePosition = 0
+    newSound.Ended:Connect(function()
+        newSound:Destroy()
+    end)
+    newSound:Play()
+end
+
 
 ----- Event functions -----
 
@@ -64,6 +75,8 @@ onCoinClientEvent = function(mode: string, ...)
         setDefaultTransparency(...)
     elseif mode == "Play Sound From Part" then
         playSoundFromPart(...)
+    elseif mode == "Play Sound From Workspace" then
+        playSoundFromWorkspace(...)
     end
 end
 

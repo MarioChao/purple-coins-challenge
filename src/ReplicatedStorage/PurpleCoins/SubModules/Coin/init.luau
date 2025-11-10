@@ -18,8 +18,9 @@ Constants.initialTransparencyString = "CoinInitialTransparency"
 Constants.updateTransparencyModeString = "Update Transparency"
 Constants.setDefaultTransparencyModeString = "Set Default Transparency"
 Constants.playSoundFromPartModeString = "Play Sound From Part"
+Constants.playSoundFromWorkspaceModeString = "Play Sound From Workspace"
 
-Constants.distanceCheck_extraLength = 5
+Constants.distanceCheck_extraLength = 7
 
 table.freeze(Constants)
 
@@ -273,7 +274,8 @@ end
 
 -- Plays a sound from the coin on player.
 function Coin.playSound_player(self: ClassType, player: Player, sound: Sound)
-    Constants.CoinRemoteEvent:FireClient(player, Constants.playSoundFromPartModeString, self:getOrCreatePrimaryPart(), sound)
+    -- Constants.CoinRemoteEvent:FireClient(player, Constants.playSoundFromPartModeString, self:getOrCreatePrimaryPart(), sound)
+    Constants.CoinRemoteEvent:FireClient(player, Constants.playSoundFromWorkspaceModeString, sound)
 end
 
 
