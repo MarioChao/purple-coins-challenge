@@ -80,9 +80,9 @@ evaluatePlayerStateFromScore = function(player: Player, score: number, purpleCoi
 
     if score == #purpleCoins.storedCoins then
         print(`[Purple Coins Challenge]: Player {player.Name} won!`)
+        task.defer(onPlayerWin, player)
         task.wait(5)
         -- purpleCoins:unclaimAllCoins_player(player)
-        onPlayerWin(player)
     end
 end
 
