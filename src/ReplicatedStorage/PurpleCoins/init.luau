@@ -11,7 +11,7 @@ local RunService = game:GetService("RunService")
 
 ---------- Validate environment ----------
 
-assert(RunService:IsServer(), "PuprleCoins Module should only be used by Server scripts")
+assert(RunService:IsServer(), "PurpleCoins Module should only be used by Server scripts")
 
 
 ---------- Imports ----------
