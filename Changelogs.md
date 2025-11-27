@@ -1,5 +1,11 @@
 # Changelogs
 
+## [v0.0.2] Model spinning fix + Transparent UIs | 2025/11/26
+
+Fixed model spinning when the primary part isn't centered.
+
+UI instances are no longer visible when coin is collected.
+
 ## [v0.0.1] User interface + Small fixes | 2025/11/10
 
 Added a user interface:

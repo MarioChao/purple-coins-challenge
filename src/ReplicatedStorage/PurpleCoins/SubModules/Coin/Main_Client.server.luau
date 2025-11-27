@@ -3,12 +3,17 @@
 -- Main Client
 
 
+---------- Imports ----------
+
+local UIUtil = require(script.Parent.Parent:WaitForChild("UIUtil"))
+
+
 --------- Constants ---------
 
 local Constants = {}
 
 Constants.CoinRemoteEvent = script.Parent:WaitForChild("CoinRemoteEvent")
-Constants.initialTransparencyString = "CoinInitialTransparency"
+Constants.fadeTweenInfo = TweenInfo.new(0.2)
 
 table.freeze(Constants)
 
@@ -17,7 +22,6 @@ table.freeze(Constants)
 
 local onClientStart
 local onCoinClientEvent
-local getPartInitialTransparency
 local updateTransparency
 local setDefaultTransparency
 local playSoundFromPart
@@ -26,20 +30,16 @@ local playSoundFromWorkspace
 
 ----- Visual functions -----
 
-getPartInitialTransparency = function(part: BasePart): number
-    return tonumber(part:GetAttribute(Constants.initialTransparencyString)) or part.Transparency
-end
-
-updateTransparency = function(partsTable: {BasePart}, transparency: number)
-    for _, part in partsTable do
-        part.Transparency = transparency
+updateTransparency = function(container: Instance, transparency: number)
+    if transparency == 1 then
+        UIUtil.fade(container, Constants.fadeTweenInfo, false, true)
+    else
+        UIUtil.setTransparency(container, transparency)
     end
 end
 
-setDefaultTransparency = function(partsTable: {BasePart})
-    for _, part in partsTable do
-        part.Transparency = getPartInitialTransparency(part)
-    end
+setDefaultTransparency = function(container: Instance)
+    UIUtil.resetTransparency(container)
 end
 
 

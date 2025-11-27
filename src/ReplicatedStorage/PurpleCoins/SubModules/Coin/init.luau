@@ -8,12 +8,16 @@
 local Players = game:GetService("Players")
 
 
+---------- Imports ----------
+
+local UIUtil = require(script.Parent:WaitForChild("UIUtil"))
+
+
 ---------- Constants ----------
 
 local Constants = {}
 
 Constants.CoinRemoteEvent = script:WaitForChild("CoinRemoteEvent")
-Constants.initialTransparencyString = "CoinInitialTransparency"
 
 Constants.updateTransparencyModeString = "Update Transparency"
 Constants.setDefaultTransparencyModeString = "Set Default Transparency"
@@ -28,8 +32,6 @@ table.freeze(Constants)
 ---------- Local functions ----------
 
 local getDescendantParts
-local storePartInitialTransparency
-local getPartInitialTransparency
 
 
 ----- Get parts -----
@@ -45,19 +47,6 @@ getDescendantParts = function(parentInstance: Instance, includeParent: boolean)
         end
     end
     return result
-end
-
-
------ Visual functions -----
-
-storePartInitialTransparency = function(part: BasePart)
-    if not part:GetAttribute(Constants.initialTransparencyString) then
-        part:SetAttribute(Constants.initialTransparencyString, part.Transparency)
-    end
-end
-
-getPartInitialTransparency = function(part: BasePart): number
-    return tonumber(part:GetAttribute(Constants.initialTransparencyString)) or part.Transparency
 end
 
 
@@ -102,9 +91,7 @@ function Coin.new(coinInstance: BasePart | Model, coinValue: number, isServerSid
 
     self._spinThread = nil
 
-    for _, part in self._coinParts do
-        storePartInitialTransparency(part)
-    end
+    UIUtil.resetTransparency(self._coinInstance)
 
     return self
 end
@@ -236,8 +223,9 @@ function Coin.spin(self: ClassType, rotationalVelocity: Vector3)
             if self._coinInstance:IsA("BasePart") then
                 self._coinInstance:PivotTo(targetCFrame)
             elseif self._coinInstance:IsA("Model") then
-                self._coinInstance:PivotTo(targetCFrame)
-                self._coinInstance:GetPivot()
+                local pivotCFrame = self._coinInstance:GetPivot()
+                local targetPivotCFrame = targetCFrame + (pivotCFrame.Position - position)
+                self._coinInstance:PivotTo(targetPivotCFrame)
             end
 
             -- Small delay (equivalent to RunService.Heartbeat:Wait())
@@ -249,18 +237,18 @@ end
 -- Updates coin's appearance based on claimed value (on server).
 function Coin.updateVisual_server(self: ClassType)
     if self:checkClaimed_server() then
-        Constants.CoinRemoteEvent:FireAllClients(Constants.updateTransparencyModeString, self._coinParts, 1)
+        Constants.CoinRemoteEvent:FireAllClients(Constants.updateTransparencyModeString, self._coinInstance, 1)
     else
-        Constants.CoinRemoteEvent:FireAllClients(Constants.setDefaultTransparencyModeString, self._coinParts)
+        Constants.CoinRemoteEvent:FireAllClients(Constants.setDefaultTransparencyModeString, self._coinInstance)
     end
 end
 
 -- Updates coin's appearance based on claimed value (on player).
 function Coin.updateVisual_player(self: ClassType, player: Player)
     if self:checkClaimed_player(player) then
-        Constants.CoinRemoteEvent:FireClient(player, Constants.updateTransparencyModeString, self._coinParts, 1)
+        Constants.CoinRemoteEvent:FireClient(player, Constants.updateTransparencyModeString, self._coinInstance, 1)
     else
-        Constants.CoinRemoteEvent:FireClient(player, Constants.setDefaultTransparencyModeString, self._coinParts)
+        Constants.CoinRemoteEvent:FireClient(player, Constants.setDefaultTransparencyModeString, self._coinInstance)
     end
 end
 
