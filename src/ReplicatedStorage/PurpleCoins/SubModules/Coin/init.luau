@@ -18,11 +18,12 @@ local UIUtil = require(script.Parent:WaitForChild("UIUtil"))
 local Constants = {}
 
 Constants.CoinRemoteEvent = script:WaitForChild("CoinRemoteEvent")
-
-Constants.updateTransparencyModeString = "Update Transparency"
-Constants.setDefaultTransparencyModeString = "Set Default Transparency"
-Constants.playSoundFromPartModeString = "Play Sound From Part"
-Constants.playSoundFromWorkspaceModeString = "Play Sound From Workspace"
+Constants.remoteEventStrings = {
+    updateTransparency = "Update Transparency",
+    setDefaultTransparency = "Set Default Transparency",
+    playSoundFromPart = "Play Sound From Part",
+    playSoundFromWorkspace = "Play Sound From Workspace",
+}
 
 Constants.distanceCheck_extraLength = 7
 
@@ -62,9 +63,17 @@ type ClassData = {
     _coinInstance: BasePart | Model,
     _coinValue: number,
     _isServerSided: boolean,
-    _isActivated: boolean,
+
+    _default_isActivated: boolean,
+    _server_isActivated: boolean,
+    _client_player_isActivated: {[Player]: boolean?},
+
+    _default_isVisible: boolean,
+    _server_isVisible: boolean,
+    _client_player_isVisible: {[Player]: boolean?},
 
     _coinParts: {BasePart},
+    _default_claimed: boolean,
     _server_claimed: boolean,
     _client_player_claimed: {[Player]: boolean?},
 
@@ -82,10 +91,18 @@ function Coin.new(coinInstance: BasePart | Model, coinValue: number, isServerSid
     self._coinInstance = coinInstance
     self._coinValue = coinValue
 	self._isServerSided = isServerSided
-    self._isActivated = isActivated
+
+    self._default_isActivated = isActivated
+    self._server_isActivated = isActivated
+    self._client_player_isActivated = {}
+
+    self._default_isVisible = true
+    self._server_isVisible = true
+    self._client_player_isVisible = {}
 
     self:getOrCreatePrimaryPart()
     self._coinParts = getDescendantParts(coinInstance, true)
+    self._default_claimed = false
     self._server_claimed = false
     self._client_player_claimed = {}
 
@@ -97,7 +114,7 @@ function Coin.new(coinInstance: BasePart | Model, coinValue: number, isServerSid
 end
 
 
------ Claimed status -----
+----- Claimed attribute -----
 
 -- Sets claimed status on server.
 function Coin.setClaimed_server(self: ClassType, isClaimed: boolean)
@@ -129,13 +146,87 @@ end
 function Coin.checkClaimed_player(self: ClassType, player: Player): boolean
     local result
     if self._isServerSided then
-        result = self._server_claimed
-    end
-    if not result then
-        result = self._client_player_claimed[player] == true
+        result = self._server_claimed == true
+    else
+        if self._client_player_claimed[player] ~= nil then
+            result = self._client_player_claimed[player] == true
+        else
+            result = self._default_claimed
+        end
     end
 	return result
 end
+
+
+----- Activated attribute -----
+
+-- Sets if coin is activated on server.
+function Coin.setActivated_server(self: ClassType, isActivated: boolean)
+    self._server_isActivated = isActivated
+end
+
+-- Sets if coin is activated on player.
+function Coin.setActivated_player(self: ClassType, player: Player, isActivated: boolean)
+    self._client_player_isActivated[player] = isActivated
+end
+
+-- Checks if coin is activated on server.
+function Coin.checkActivated_server(self: ClassType): boolean
+    return self._server_isActivated == true
+end
+
+-- Checks if coin is activated by player.
+function Coin.checkActivated_player(self: ClassType, player: Player): boolean
+    local result
+    if self._isServerSided then
+        result = self._server_isActivated == true
+    else
+        if self._client_player_isActivated[player] ~= nil then
+            result = self._client_player_isActivated[player] == true
+        else
+            result = self._default_isActivated
+        end
+    end
+	return result
+end
+
+
+----- Visible attribute -----
+
+-- Sets if coin is visible on server.
+function Coin.setVisible_server(self: ClassType, isVisible: boolean)
+    self._server_isVisible = isVisible
+    self:updateVisual_server()
+end
+
+-- Sets if coin is visible on player.
+function Coin.setVisible_player(self: ClassType, player: Player, isVisible: boolean)
+    self._client_player_isVisible[player] = isVisible
+    self:updateVisual_player(player)
+end
+
+-- Checks if coin is visible on server.
+function Coin.checkVisible_server(self: ClassType): boolean
+    return self._server_isVisible == true
+end
+
+-- Checks if coin is visible by player.
+function Coin.checkVisible_player(self: ClassType, player: Player): boolean
+    local result
+    if self._isServerSided then
+        result = self._server_isVisible == true
+    else
+        if self._client_player_isVisible[player] ~= nil then
+            result = self._client_player_isVisible[player] == true
+        else
+            result = self._default_isVisible
+        end
+    end
+	return result
+end
+
+
+----- Claimed status -----
 
 -- Checks if the player picks up the coin on the server.
 function Coin.checkPlayerTouched_distanceCheck(self: ClassType, player: Player)
@@ -234,21 +325,25 @@ function Coin.spin(self: ClassType, rotationalVelocity: Vector3)
     end)
 end
 
--- Updates coin's appearance based on claimed value (on server).
+-- Updates coin's appearance based on visible and claimed value (on server).
 function Coin.updateVisual_server(self: ClassType)
-    if self:checkClaimed_server() then
-        Constants.CoinRemoteEvent:FireAllClients(Constants.updateTransparencyModeString, self._coinInstance, 1)
+    if not self:checkVisible_server() then
+        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
+    elseif self:checkClaimed_server() then
+        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
     else
-        Constants.CoinRemoteEvent:FireAllClients(Constants.setDefaultTransparencyModeString, self._coinInstance)
+        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, self._coinInstance)
     end
 end
 
--- Updates coin's appearance based on claimed value (on player).
+-- Updates coin's appearance based on visible and claimed value (on player).
 function Coin.updateVisual_player(self: ClassType, player: Player)
-    if self:checkClaimed_player(player) then
-        Constants.CoinRemoteEvent:FireClient(player, Constants.updateTransparencyModeString, self._coinInstance, 1)
+    if not self:checkVisible_player(player) then
+        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
+    elseif self:checkClaimed_player(player) then
+        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
     else
-        Constants.CoinRemoteEvent:FireClient(player, Constants.setDefaultTransparencyModeString, self._coinInstance)
+        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, self._coinInstance)
     end
 end
 
@@ -257,13 +352,13 @@ end
 
 -- Plays a sound from the coin on server.
 function Coin.playSound_server(self: ClassType, sound: Sound)
-    Constants.CoinRemoteEvent:FireAllClients(Constants.playSoundFromPartModeString, self:getOrCreatePrimaryPart(), sound)
+    Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.playSoundFromPart, self:getOrCreatePrimaryPart(), sound)
 end
 
 -- Plays a sound from the coin on player.
 function Coin.playSound_player(self: ClassType, player: Player, sound: Sound)
-    -- Constants.CoinRemoteEvent:FireClient(player, Constants.playSoundFromPartModeString, self:getOrCreatePrimaryPart(), sound)
-    Constants.CoinRemoteEvent:FireClient(player, Constants.playSoundFromWorkspaceModeString, sound)
+    -- Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.playSoundFromPart, self:getOrCreatePrimaryPart(), sound)
+    Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.playSoundFromWorkspace, sound)
 end
 
 

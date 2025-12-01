@@ -13,6 +13,13 @@ local UIUtil = require(script.Parent.Parent:WaitForChild("UIUtil"))
 local Constants = {}
 
 Constants.CoinRemoteEvent = script.Parent:WaitForChild("CoinRemoteEvent")
+Constants.remoteEventStrings = {
+    updateTransparency = "Update Transparency",
+    setDefaultTransparency = "Set Default Transparency",
+    playSoundFromPart = "Play Sound From Part",
+    playSoundFromWorkspace = "Play Sound From Workspace",
+}
+
 Constants.fadeTweenInfo = TweenInfo.new(0.2)
 
 table.freeze(Constants)
@@ -39,7 +46,7 @@ updateTransparency = function(container: Instance, transparency: number)
 end
 
 setDefaultTransparency = function(container: Instance)
-    UIUtil.resetTransparency(container)
+    UIUtil.fade(container, Constants.fadeTweenInfo, true, true)
 end
 
 
@@ -69,13 +76,13 @@ end
 ----- Event functions -----
 
 onCoinClientEvent = function(mode: string, ...)
-    if mode == "Update Transparency" then
+    if mode == Constants.remoteEventStrings.updateTransparency then
         updateTransparency(...)
-    elseif mode == "Set Default Transparency" then
+    elseif mode == Constants.remoteEventStrings.setDefaultTransparency then
         setDefaultTransparency(...)
-    elseif mode == "Play Sound From Part" then
+    elseif mode == Constants.remoteEventStrings.playSoundFromPart then
         playSoundFromPart(...)
-    elseif mode == "Play Sound From Workspace" then
+    elseif mode == Constants.remoteEventStrings.playSoundFromWorkspace then
         playSoundFromWorkspace(...)
     end
 end

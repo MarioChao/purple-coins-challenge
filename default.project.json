@@ -24,8 +24,31 @@
     },
 
     "ServerScriptService": {
-      "$path": "src/ServerScriptService",
-      "$ignoreUnknownInstances": true
+      "Modules": {
+        "$path": "ServerPackages",
+        "$ignoreUnknownInstances": true
+      },
+
+      "PurpleCoins": {
+        "$className": "Folder",
+
+        "ChallengesStorage": {
+          "$path": "src/ServerScriptService/PurpleCoins/ChallengesStorage",
+          "$ignoreUnknownInstances": true
+        },
+
+        "GetChallenges": {
+          "$path": "src/ServerScriptService/PurpleCoins/GetChallenges"
+        },
+
+        "PurpleCoinsMain": {
+          "$path": "src/ServerScriptService/PurpleCoins/PurpleCoinsMain"
+        },
+
+        "_Constants": {
+          "$path": "src/ServerScriptService/PurpleCoins/_Constants"
+        }
+      }
     },
 
     "StarterPlayer": {
@@ -44,5 +67,6 @@
         }
       }
     }
-  }
+  },
+  "globIgnorePaths": ["**/wally.toml"]
 }

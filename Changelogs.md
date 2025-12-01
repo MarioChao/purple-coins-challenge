@@ -1,6 +1,16 @@
 # Changelogs
 
-## [v0.0.2] Model spinning fix + Transparent UIs | 2025/11/26
+## [v0.0.3] Better challenge scripts + More features | 2025/11/26 (2)
+
+Modified the scripts under `ServerScriptService` and `StarterPlayerScripts` to facilitate creating multiple Purple Coins challenges.
+- Reorganized & refactored scripts under `ServerScriptService`.
+- Create & configure individual challenges in the `ServerScriptService` > `PurpleCoins` > `ChallengesStorage`.
+
+Several new features:
+- Added new Coins `isVisible` (server + client).
+- Added server + client support for Coins `isActivated`.
+
+## [v0.0.2] Model spinning fix + Transparent UIs | 2025/11/26 (1)
 
 Fixed model spinning when the primary part isn't centered.
 

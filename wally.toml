@@ -1,0 +1,8 @@
+[package]
+name = "mariochao/purple-coins-challenge"
+version = "0.0.3"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[server-dependencies]
+BadgeUtil = "mariochao/badge-util@^0.0.0"

@@ -15,8 +15,9 @@ local Constants = {}
 
 Constants.CoinsFolder = workspace._Workspace.CoinsFolder
 
-Constants.PurpleCoinsRemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("PurpleCoinsRemoteEvent")
+Constants.purpleCoinsRemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("PurpleCoinsRemoteEvent")
 Constants.onScoreChangeModeString = "On Score Change"
+Constants.setUIEnabledModeString = "Set UI Enabled"
 
 Constants.defaultScreenGui = script.Parent:WaitForChild("PurpleCoins_ScreenGui")
 
@@ -47,9 +48,10 @@ table.freeze(PurpleCoinsGuis)
 
 ---------- Local functions ----------
 
-local onClientStart
-local onPurpleCoinsClientEvent
 local onScoreChange
+local setUIEnabled
+local onPurpleCoinsClientEvent
+local onClientStart
 
 
 ----- Score functions -----
@@ -63,11 +65,20 @@ onScoreChange = function(score: number, targetScore: number)
 end
 
 
+----- UI functions -----
+
+setUIEnabled = function(enabled: number)
+    PurpleCoinsGuis.ScreenGui.Enabled = enabled
+end
+
+
 ----- Event functions -----
 
 onPurpleCoinsClientEvent = function(mode: string, ...)
-    if mode == "On Score Change" then
+    if mode == Constants.onScoreChangeModeString then
         onScoreChange(...)
+    elseif mode == Constants.setUIEnabledModeString then
+        setUIEnabled(...)
     end
 end
 
@@ -75,10 +86,7 @@ end
 ----- Main function -----
 
 onClientStart = function()
-    Constants.PurpleCoinsRemoteEvent.OnClientEvent:Connect(onPurpleCoinsClientEvent)
-
-    local _ = Constants.localPlayer.Character or Constants.localPlayer.CharacterAdded:Wait()
-    PurpleCoinsGuis.ScreenGui.Enabled = true
+    Constants.purpleCoinsRemoteEvent.OnClientEvent:Connect(onPurpleCoinsClientEvent)
 end
 
 

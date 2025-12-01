@@ -25,6 +25,7 @@ local Constants = {}
 
 Constants.default_coinValue = 1
 Constants.default_isServerSided = false
+Constants.default_isActivated = false
 Constants.default_coinRotationalVelocity = Vector3.new(0, math.rad(540), 0)
 Constants.default_coinCollectSound = script.Sounds.CoinCollect
 
@@ -44,6 +45,7 @@ type ClassData = {
 
 	default_coinValue: number,
 	default_isServerSided: boolean,
+	default_isActivated: boolean,
 	default_coinRotationalVelocity: Vector3,
 	default_coinCollectSound: Sound,
 
@@ -65,6 +67,7 @@ function PurpleCoins.new()
 
 	self.default_coinValue = Constants.default_coinValue
 	self.default_isServerSided = Constants.default_isServerSided
+	self.default_isActivated = Constants.default_isActivated
 	self.default_coinRotationalVelocity = Constants.default_coinRotationalVelocity
 	self.default_coinCollectSound = Constants.default_coinCollectSound
 
@@ -73,9 +76,10 @@ function PurpleCoins.new()
 	return self
 end
 
-function PurpleCoins.setDefaultInfo(self: ClassType, default_coinValue: number, default_isServerSided: boolean)
+function PurpleCoins.setDefaultInfo(self: ClassType, default_coinValue: number, default_isServerSided: boolean, default_isActivated: boolean)
 	self.default_coinValue = default_coinValue
 	self.default_isServerSided = default_isServerSided
+	self.default_isActivated = default_isActivated
 end
 
 function PurpleCoins.setDefaultRotationVelocity(self: ClassType, default_coinRotationalVelocity: Vector3)
@@ -98,7 +102,7 @@ function PurpleCoins.addCoin(self: ClassType, object: Instance)
 			object,
 			tonumber(object:GetAttribute("CoinValue")) or self.default_coinValue,
 			(object:GetAttribute("IsServerSided") == true) or self.default_isServerSided,
-			true
+			(object:GetAttribute("Activated") == true) or self.default_isActivated
 		)
 		table.insert(self.storedCoins, coin)
 		success = true
@@ -129,6 +133,34 @@ function PurpleCoins.setCoinsCanCollide(self: ClassType, canCollide: boolean)
 		for _, part in coin._coinParts do
 			part.CanCollide = canCollide
 		end
+	end
+end
+
+-- Sets the activated state of all currently stored coins on server.
+function PurpleCoins.setCoinsActivated_server(self: ClassType, isActivated: boolean)
+	for _, coin in self.storedCoins do
+		coin:setActivated_server(isActivated)
+	end
+end
+
+-- Sets the activated state of all currently stored coins on client.
+function PurpleCoins.setCoinsActivated_player(self: ClassType, player: Player, isActivated: boolean)
+	for _, coin in self.storedCoins do
+		coin:setActivated_player(player, isActivated)
+	end
+end
+
+-- Sets the visible state of all currently stored coins on server.
+function PurpleCoins.setCoinsVisible_server(self: ClassType, isVisible: boolean)
+	for _, coin in self.storedCoins do
+		coin:setVisible_server(isVisible)
+	end
+end
+
+-- Sets the visible state of all currently stored coins on client.
+function PurpleCoins.setCoinsVisible_player(self: ClassType, player: Player, isVisible: boolean)
+	for _, coin in self.storedCoins do
+		coin:setVisible_player(player, isVisible)
 	end
 end
 
@@ -187,7 +219,11 @@ function PurpleCoins.connect(self: ClassType)
 				local player = character and Players:GetPlayerFromCharacter(character)
 				if not (character and player) then return end
 
-				if coin._isActivated and not coin:checkClaimed_player(player) and coin:checkPlayerTouched_distanceCheck(player) then
+				local isValid = true
+				isValid = isValid and coin:checkActivated_player(player)
+				isValid = isValid and not coin:checkClaimed_player(player)
+				isValid = isValid and coin:checkPlayerTouched_distanceCheck(player)
+				if isValid then
 					coin:setClaimed_player(player, true)
 					if coin._isServerSided then
 						coin:playSound_server(self.default_coinCollectSound)
