@@ -153,29 +153,71 @@ end
 -- Sets the visible state of all currently stored coins on server.
 function PurpleCoins.setCoinsVisible_server(self: ClassType, isVisible: boolean)
 	for _, coin in self.storedCoins do
-		coin:setVisible_server(isVisible)
+		coin:setVisible_server(isVisible, false)
 	end
+	self:updateVisual_server()
 end
 
 -- Sets the visible state of all currently stored coins on client.
 function PurpleCoins.setCoinsVisible_player(self: ClassType, player: Player, isVisible: boolean)
 	for _, coin in self.storedCoins do
-		coin:setVisible_player(player, isVisible)
+		coin:setVisible_player(player, isVisible, false)
 	end
+	self:updateVisual_player(player)
+end
+
+-- Updates the appearance of all currently stored coins on server.
+function PurpleCoins.updateVisual_server(self: ClassType)
+	local expectedVisual
+	local coinInstances_categorized = {
+		setDefault = {} :: {Instance},
+		setHidden = {} :: {Instance},
+	}
+	for _, coin in self.storedCoins do
+		expectedVisual = coin:getExpectedVisual_server()
+		if expectedVisual == "Hidden" then
+			table.insert(coinInstances_categorized.setHidden, coin._coinInstance)
+		elseif expectedVisual == "Default" then
+			table.insert(coinInstances_categorized.setDefault, coin._coinInstance)
+		end
+	end
+	Coin.static_setDefaultTransparency(true, nil, coinInstances_categorized.setDefault)
+	Coin.static_updateTransparency(true, nil, coinInstances_categorized.setHidden, 1)
+end
+
+-- Updates the appearance of all currently stored coins on client.
+function PurpleCoins.updateVisual_player(self: ClassType, player: Player)
+	local expectedVisual
+	local coinInstances_categorized = {
+		setDefault = {} :: {Instance},
+		setHidden = {} :: {Instance},
+	}
+	for _, coin in self.storedCoins do
+		expectedVisual = coin:getExpectedVisual_player(player)
+		if expectedVisual == "Hidden" then
+			table.insert(coinInstances_categorized.setHidden, coin._coinInstance)
+		elseif expectedVisual == "Default" then
+			table.insert(coinInstances_categorized.setDefault, coin._coinInstance)
+		end
+	end
+	Coin.static_setDefaultTransparency(false, player, coinInstances_categorized.setDefault)
+	Coin.static_updateTransparency(false, player, coinInstances_categorized.setHidden, 1)
 end
 
 -- Unclaims all stored coins on server.
 function PurpleCoins.unclaimAllCoins_server(self: ClassType)
 	for _, coin in self.storedCoins do
-		coin:setClaimed_server(false)
+		coin:setClaimed_server(false, false)
 	end
+	self:updateVisual_server()
 end
 
 -- Unclaims all stored coins on client.
 function PurpleCoins.unclaimAllCoins_player(self: ClassType, player: Player)
 	for _, coin in self.storedCoins do
-		coin:setClaimed_player(player, false)
+		coin:setClaimed_player(player, false, false)
 	end
+	self:updateVisual_player(player)
 end
 
 -- Removes all stored coins.
@@ -224,7 +266,7 @@ function PurpleCoins.connect(self: ClassType)
 				isValid = isValid and not coin:checkClaimed_player(player)
 				isValid = isValid and coin:checkPlayerTouched_distanceCheck(player)
 				if isValid then
-					coin:setClaimed_player(player, true)
+					coin:setClaimed_player(player, true, true)
 					if coin._isServerSided then
 						coin:playSound_server(self.default_coinCollectSound)
 					else
@@ -234,6 +276,11 @@ function PurpleCoins.connect(self: ClassType)
 			end))
 		end
 	end
+
+	-- Update visual for new players
+	table.insert(self._connections, Players.PlayerAdded:Connect(function(player: Player)
+		self:updateVisual_player(player)
+	end))
 
 	-- Remove data for players that left
 	table.insert(self._connections, Players.PlayerRemoving:Connect(function(player: Player)

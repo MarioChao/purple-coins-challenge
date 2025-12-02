@@ -1,0 +1,13 @@
+{
+    "className": "Folder",
+    "children": [
+        {
+            "name": "PurpleCoinsEvent",
+            "className": "BindableEvent"
+        },
+        {
+            "name": "ChallengeStateEvent",
+            "className": "BindableEvent"
+        }
+    ]
+}

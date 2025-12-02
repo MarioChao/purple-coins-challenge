@@ -38,13 +38,19 @@ Module.remoteEventStrings = {
 }
 table.freeze(Module.remoteEventStrings)
 
-Module.purpleCoinsBindableEvent = script.PurpleCoinsEvent
+Module.purpleCoinsBindableEvent = script.Events.PurpleCoinsEvent
 Module.bindableEventStrings = {
     restartChallenge = "Restart Challenge",
     setCoinsActivated = "Set Coins Activated",
     setCoinsVisible = "Set Coins Visible",
 }
 table.freeze(Module.bindableEventStrings)
+
+Module.challengeStateBindableEvent = script.Events.ChallengeStateEvent
+Module.challengeStateBindableEventStrings = {
+    playerChallengeScoreUpdate = "Player Challenge Score Update",
+}
+table.freeze(Module.challengeStateBindableEventStrings)
 
 
 ---------- Return module ----------

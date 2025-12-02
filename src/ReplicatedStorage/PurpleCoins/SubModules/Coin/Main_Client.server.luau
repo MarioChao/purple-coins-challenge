@@ -18,6 +18,7 @@ Constants.remoteEventStrings = {
     setDefaultTransparency = "Set Default Transparency",
     playSoundFromPart = "Play Sound From Part",
     playSoundFromWorkspace = "Play Sound From Workspace",
+    playerConnected = "Player Connected",
 }
 
 Constants.fadeTweenInfo = TweenInfo.new(0.2)
@@ -37,16 +38,20 @@ local playSoundFromWorkspace
 
 ----- Visual functions -----
 
-updateTransparency = function(container: Instance, transparency: number)
-    if transparency == 1 then
-        UIUtil.fade(container, Constants.fadeTweenInfo, false, true)
-    else
-        UIUtil.setTransparency(container, transparency)
+updateTransparency = function(containers: {Instance}, transparency: number)
+    for _, object in containers do
+        if transparency == 1 then
+            UIUtil.fade(object, Constants.fadeTweenInfo, false, false)
+        else
+            UIUtil.setTransparency(object, transparency)
+        end
     end
 end
 
-setDefaultTransparency = function(container: Instance)
-    UIUtil.fade(container, Constants.fadeTweenInfo, true, true)
+setDefaultTransparency = function(containers: {Instance})
+    for _, object in containers do
+        UIUtil.fade(object, Constants.fadeTweenInfo, true, false)
+    end
 end
 
 
@@ -92,6 +97,7 @@ end
 
 onClientStart = function()
     Constants.CoinRemoteEvent.OnClientEvent:Connect(onCoinClientEvent)
+    Constants.CoinRemoteEvent:FireServer(Constants.remoteEventStrings.playerConnected)
 end
 
 

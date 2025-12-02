@@ -23,6 +23,7 @@ Constants.remoteEventStrings = {
     setDefaultTransparency = "Set Default Transparency",
     playSoundFromPart = "Play Sound From Part",
     playSoundFromWorkspace = "Play Sound From Workspace",
+    playerConnected = "Player Connected",
 }
 
 Constants.distanceCheck_extraLength = 7
@@ -30,9 +31,16 @@ Constants.distanceCheck_extraLength = 7
 table.freeze(Constants)
 
 
+---------- Globals ----------
+
+local Globals = {}
+Globals.player_connected = {} :: {[Player]: boolean?}
+
+
 ---------- Local functions ----------
 
 local getDescendantParts
+local onCoinServerEvent
 
 
 ----- Get parts -----
@@ -49,6 +57,30 @@ getDescendantParts = function(parentInstance: Instance, includeParent: boolean)
     end
     return result
 end
+
+
+----- Coin event -----
+
+onCoinServerEvent = function(player: Player, mode: string, ...)
+    if mode == Constants.remoteEventStrings.playerConnected then
+        Globals.player_connected[player] = true
+    end
+end
+
+
+----- Main -----
+
+local function main()
+    Constants.CoinRemoteEvent.OnServerEvent:Connect(onCoinServerEvent)
+    Players.PlayerRemoving:Connect(function(player: Player)
+        Globals.player_connected[player] = nil
+    end)
+end
+
+
+---------- Calling function ----------
+
+task.defer(main)
 
 
 ---------- Module ----------
@@ -78,6 +110,7 @@ type ClassData = {
     _client_player_claimed: {[Player]: boolean?},
 
     _spinThread: thread?,
+    _updatePlayerVisualThread: thread?,
 }
 
 export type ClassType = ClassData & typeof(Coin)
@@ -107,6 +140,7 @@ function Coin.new(coinInstance: BasePart | Model, coinValue: number, isServerSid
     self._client_player_claimed = {}
 
     self._spinThread = nil
+    self._updatePlayerVisualThread = nil
 
     UIUtil.resetTransparency(self._coinInstance)
 
@@ -117,22 +151,26 @@ end
 ----- Claimed attribute -----
 
 -- Sets claimed status on server.
-function Coin.setClaimed_server(self: ClassType, isClaimed: boolean)
+function Coin.setClaimed_server(self: ClassType, isClaimed: boolean, updateVisual: boolean)
     if self._server_claimed ~= isClaimed then
         self._server_claimed = isClaimed
-        self:updateVisual_server()
+        if updateVisual then
+            self:updateVisual_server()
+        end
     end
 end
 
 -- Sets claimed status on client.
-function Coin.setClaimed_player(self: ClassType, player: Player, isClaimed: boolean)
+function Coin.setClaimed_player(self: ClassType, player: Player, isClaimed: boolean, updateVisual: boolean)
     if self._client_player_claimed[player] ~= isClaimed then
         self._client_player_claimed[player] = isClaimed
         if isClaimed and self._isServerSided then
-            self:setClaimed_server(isClaimed)
+            self:setClaimed_server(isClaimed, updateVisual)
         end
         if not self._isServerSided then
-            self:updateVisual_player(player)
+            if updateVisual then
+                self:updateVisual_player(player)
+            end
         end
     end
 end
@@ -194,15 +232,19 @@ end
 ----- Visible attribute -----
 
 -- Sets if coin is visible on server.
-function Coin.setVisible_server(self: ClassType, isVisible: boolean)
+function Coin.setVisible_server(self: ClassType, isVisible: boolean, updateVisual: boolean)
     self._server_isVisible = isVisible
-    self:updateVisual_server()
+    if updateVisual then
+        self:updateVisual_server()
+    end
 end
 
 -- Sets if coin is visible on player.
-function Coin.setVisible_player(self: ClassType, player: Player, isVisible: boolean)
+function Coin.setVisible_player(self: ClassType, player: Player, isVisible: boolean, updateVisual: boolean)
     self._client_player_isVisible[player] = isVisible
-    self:updateVisual_player(player)
+    if updateVisual then
+        self:updateVisual_player(player)
+    end
 end
 
 -- Checks if coin is visible on server.
@@ -272,7 +314,7 @@ function Coin.getEarnedValue_player(self: ClassType, player: Player)
 end
 
 
------ Visual functions -----
+----- Spin -----
 
 -- Gets the primary part of the coin.
 function Coin.getOrCreatePrimaryPart(self: ClassType): BasePart
@@ -325,26 +367,86 @@ function Coin.spin(self: ClassType, rotationalVelocity: Vector3)
     end)
 end
 
+
+----- Visual -----
+
+-- (static) Sets multiple instances to default transparency.
+function Coin.static_setDefaultTransparency(fireAllClients: boolean, player: Player?, instances: {Instance})
+    if fireAllClients then
+        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, instances)
+    elseif player then
+        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, instances)
+    else
+        warn('[Purple Coins]: Either `fireAllClients` should be `true` or `player` should be specified.')
+    end
+end
+
+-- (static) Sets multiple instances to the specified transparency.
+function Coin.static_updateTransparency(fireAllClients: boolean, player: Player?, instances: {Instance}, transparency: number)
+    if fireAllClients then
+        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, instances, transparency)
+    elseif player then
+        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, instances, transparency)
+    else
+        warn('[Purple Coins]: Either `fireAllClients` should be `true` or `player` should be specified.')
+    end
+end
+
+-- Gets the coin's expected appearance (on server).
+function Coin.getExpectedVisual_server(self: ClassType)
+    local result
+    if not self:checkVisible_server() then
+        result = "Hidden"
+    elseif self:checkClaimed_server() then
+        result = "Hidden"
+    else
+        result = "Default"
+    end
+    return result
+end
+
+-- Gets the coin's expected appearance (on player).
+function Coin.getExpectedVisual_player(self: ClassType, player: Player)
+    local result
+    if not self:checkVisible_player(player) then
+        result = "Hidden"
+    elseif self:checkClaimed_player(player) then
+        result = "Hidden"
+    else
+        result = "Default"
+    end
+    return result
+end
+
 -- Updates coin's appearance based on visible and claimed value (on server).
 function Coin.updateVisual_server(self: ClassType)
-    if not self:checkVisible_server() then
-        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
-    elseif self:checkClaimed_server() then
-        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
-    else
-        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, self._coinInstance)
+    if next(Players:GetPlayers()) then
+        local expectedVisual = self:getExpectedVisual_server()
+        if expectedVisual == "Hidden" then
+            Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, {self._coinInstance}, 1)
+        elseif expectedVisual == "Default" then
+            Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, {self._coinInstance})
+        end
     end
 end
 
 -- Updates coin's appearance based on visible and claimed value (on player).
 function Coin.updateVisual_player(self: ClassType, player: Player)
-    if not self:checkVisible_player(player) then
-        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
-    elseif self:checkClaimed_player(player) then
-        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, self._coinInstance, 1)
-    else
-        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, self._coinInstance)
+    if self._updatePlayerVisualThread then
+        task.cancel(self._updatePlayerVisualThread)
     end
+    self._updatePlayerVisualThread = task.defer(function()
+        local startTime = time()
+        while not Globals.player_connected[player] and time() - startTime < 5 do
+            task.wait()
+        end
+        local expectedVisual = self:getExpectedVisual_player(player)
+        if expectedVisual == "Hidden" then
+            Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, {self._coinInstance}, 1)
+        elseif expectedVisual == "Default" then
+            Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, {self._coinInstance})
+        end
+    end)
 end
 
 
@@ -389,6 +491,11 @@ function Coin.cleanUp(self: ClassType)
         task.cancel(self._spinThread)
     end
     self._spinThread = nil
+
+    if self._updatePlayerVisualThread then
+        task.cancel(self._updatePlayerVisualThread)
+    end
+    self._updatePlayerVisualThread = nil
 
     table.clear(self._client_player_claimed)
 end

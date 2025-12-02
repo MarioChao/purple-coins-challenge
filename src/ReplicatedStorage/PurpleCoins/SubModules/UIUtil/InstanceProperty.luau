@@ -1,9 +1,5 @@
 --!strict
 
----------- Module ----------
-
-local module = {}
-
 
 ---------- Global variables ----------
 
@@ -56,7 +52,12 @@ setProperty = function(instance: Instance, property: string, value: any)
 end
 
 
----------- Module fields ----------
+---------- Module ----------
+
+local module = {}
+
+
+----- Module fields -----
 
 module.hasProperty = hasProperty
 module.getPropertyType = getPropertyType
@@ -66,4 +67,5 @@ module.setProperty = setProperty
 
 ---------- Return module ----------
 
+table.freeze(module)
 return module

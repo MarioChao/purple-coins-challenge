@@ -1,9 +1,5 @@
 --!strict
 
----------- Module ----------
-
-local module = {}
-
 
 ---------- Services ----------
 
@@ -28,14 +24,23 @@ Constants.transparencyPropertyNames = {
 }
 Constants.attributePrefix = "Coin_" .. "UIUtil_"
 
+table.freeze(Constants)
 
----------- Helper functions ----------
+
+---------- Local functions ----------
 
 local getAttributeName
 local getDescendantsWithContainer
 local canTweenProperty
 local storeTransparencyValues
-local createTransparencyTweenObject
+local getTransparencyTweenObject
+
+local fade
+local setTransparency
+local resetTransparency
+
+
+----- Helper functions -----
 
 getAttributeName = function(str: string)
     return Constants.attributePrefix .. str
@@ -65,10 +70,11 @@ storeTransparencyValues = function(object: Instance)
     end
 end
 
-createTransparencyTweenObject = function(object: Instance, tweenInfo: TweenInfo, fadeIn: boolean)
+getTransparencyTweenObject = function(object: Instance, tweenInfo: TweenInfo, fadeIn: boolean): Tween?
     local propertyTable = {}
     local attributeName
     local targetTransparency
+    local result
     for _, property in Constants.transparencyPropertyNames do
         if canTweenProperty(object, property) then
             targetTransparency = 1
@@ -79,25 +85,30 @@ createTransparencyTweenObject = function(object: Instance, tweenInfo: TweenInfo,
             propertyTable[property] = targetTransparency
         end
     end
-    return TweenService:Create(object, tweenInfo, propertyTable)
+    if next(propertyTable) then
+        result = TweenService:Create(object, tweenInfo, propertyTable)
+    end
+    return result
 end
 
 
----------- Gui transparency functions ----------
-
-local fade
-local setTransparency
-local resetTransparency
+----- Gui transparency functions -----
 
 -- Fade the transparency of all guis in a container
 fade = function(container: Instance, tweenInfo: TweenInfo, fadeIn: boolean, waitForTween: boolean)
     local tweenObjects = {}
+    local createdTween
     for _, object in getDescendantsWithContainer(container) do
         storeTransparencyValues(object)
-        table.insert(tweenObjects, createTransparencyTweenObject(object, tweenInfo, fadeIn))
+        createdTween = getTransparencyTweenObject(object, tweenInfo, fadeIn)
+        if createdTween then
+            table.insert(tweenObjects, createdTween)
+        end
     end
     for _, tween in tweenObjects do
-        tween:Play()
+        task.defer(function()
+            tween:Play()
+        end)
     end
     if waitForTween and next(tweenObjects) ~= nil then
         tweenObjects[1].Completed:Wait()
@@ -131,7 +142,12 @@ resetTransparency = function(container: Instance)
 end
 
 
----------- Module fields ----------
+---------- Module ----------
+
+local module = {}
+
+
+----- Module fields -----
 
 module.fade = fade
 module.setTransparency = setTransparency
@@ -140,4 +156,5 @@ module.resetTransparency = resetTransparency
 
 ---------- Return module ----------
 
+table.freeze(module)
 return module

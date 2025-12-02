@@ -1,5 +1,17 @@
 # Changelogs
 
+## [v0.0.4] Reusable coins + Optimizations + Small fixes | 2025/12/01
+
+Reusable coins: the `PurpleCoinsMain` script now clones coin instances for Purple Coins challenges.
+
+Optimizations:
+- Reduced number of remote events fired for visual updates on Purple Coins challenges.
+- Updated `UIUtil` to play each tween in a new thread, reducing lag spikes.
+
+Added `ChallengeStateEvent`, an event that fires when a player's score in a Purple Coins challenge is updated.
+
+Fixed `CoinRemoteEvent` (remote event) firing before the player has made an event connection.
+
 ## [v0.0.3] Better challenge scripts + More features | 2025/11/26 (2)
 
 Modified the scripts under `ServerScriptService` and `StarterPlayerScripts` to facilitate creating multiple Purple Coins challenges.

@@ -48,16 +48,22 @@ local onServerStart
 
 ----- Challenge functions -----
 
-createPurpleCoinsChallenge = function(challengeModule: _Constants.ChallengeModule, challengeId: string)
+createPurpleCoinsChallenge = function(challengeModule: _Constants.ChallengeModule, challengeId: string, createClone: boolean)
     ----- Create purple coins challenge -----
 
     local challengeConfigs = challengeModule.getConfigs()
+    local finalCoinsFolder = challengeConfigs.coinsFolder
+    if createClone then
+        finalCoinsFolder = finalCoinsFolder:Clone()
+        finalCoinsFolder.Name = `_Clone_{finalCoinsFolder.Name}`
+        finalCoinsFolder.Parent = challengeConfigs.coinsFolder.Parent
+    end
     local wegas = PurpleCoins.new()
     wegas:setDefaultInfo(1, challengeConfigs.isServerSided, challengeConfigs.defaultIsActivated)
     -- wegas:setDefaultRotationVelocity(Vector3.new(0, math.rad(540), 0))
     -- wegas:setDefaultSound(ReplicatedStorage.Modules.PurpleCoins.Sounds.CoinCollect)
 
-    wegas:addCoinsFromContainer(challengeConfigs.coinsFolder, true)
+    wegas:addCoinsFromContainer(finalCoinsFolder, true)
     wegas:spinCoins()
     wegas:setCoinsCanCollide(false)
 
@@ -78,6 +84,10 @@ createPurpleCoinsChallenge = function(challengeModule: _Constants.ChallengeModul
                 if player_evaluatedScore[player] ~= score then
                     player_evaluatedScore[player] = score
                     _Constants.purpleCoinsRemoteEvent:FireClient(player, _Constants.remoteEventStrings.onScoreChange, score, totalScore)
+                    _Constants.challengeStateBindableEvent:Fire(
+                        _Constants.challengeStateBindableEventStrings.playerChallengeScoreUpdate,
+                        player, challengeId, score, totalScore
+                    )
                     task.defer(function()
                         challengeModule.evaluatePlayerStateFromScore(player, score, totalScore)
                     end)
@@ -87,7 +97,7 @@ createPurpleCoinsChallenge = function(challengeModule: _Constants.ChallengeModul
         end
     end)
 
-    return thread
+    return wegas, thread
 end
 
 
@@ -184,8 +194,33 @@ onServerStart = function()
 
     -- Create challenges
     for id, challengeModule in Constants.challengeModules do
-        createPurpleCoinsChallenge(challengeModule, tostring(id))
+        createPurpleCoinsChallenge(challengeModule, tostring(id), true)
     end
+
+    -- Hide source parts
+    task.defer(function()
+        for _id, _challengeModule in Constants.challengeModules do
+            local challengeModule = {}
+            local challengeId = `_INTERNAL_{_id}`
+            local purpleCoins, _
+            function challengeModule.getConfigs()
+                return {
+                    _challengeId = challengeId,
+                    showUIOnCharJoin = false,
+                    coinsFolder = _challengeModule.getConfigs().coinsFolder,
+                    isServerSided = true,
+                    defaultIsActivated = false,
+                    willResetOnDeath = false,
+                }
+            end
+            challengeModule.evaluatePlayerStateFromScore = function() end
+            purpleCoins, _ = createPurpleCoinsChallenge(challengeModule, challengeId, false)
+            -- Make coins invisible
+            if purpleCoins then
+                purpleCoins:setCoinsVisible_server(false)
+            end
+        end
+    end)
 
     -- Purple coins event
     _Constants.purpleCoinsBindableEvent.Event:Connect(onPurpleCoinsEvent)
