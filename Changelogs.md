@@ -1,5 +1,19 @@
 # Changelogs
 
+## [v0.0.5] Client-sided collision & mechanism | 2025/12/02
+
+Added an option for client-sided collision check (enabled by default).
+- Partially inspired by [Nullscape](https://www.roblox.com/games/129279692364812/Nullscape).
+- To achieve this, each `PurpleCoins` and `Coins` class object is assigned a unique id.
+- With this option on, the score UI will also be updated on the client side, increasing smoothness.
+
+> [!WARNING]
+> Using client-sided mechanisms may introduce vulnerabilities to exploiters.<br>
+> Also, there may be unintended behavior due to replication lag.
+
+> [!NOTE]
+> The `isServerSided` option for Purple Coins doesn't seem to work right now.
+
 ## [v0.0.4] Reusable coins + Optimizations + Small fixes | 2025/12/01
 
 Reusable coins: the `PurpleCoinsMain` script now clones coin instances for Purple Coins challenges.

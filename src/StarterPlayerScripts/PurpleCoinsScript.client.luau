@@ -9,6 +9,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 
+---------- Imports ----------
+
+local _SharedModules = ReplicatedStorage:WaitForChild("Modules")
+local _PurpleCoins = _SharedModules:WaitForChild("PurpleCoins")
+local _PurpleCoins_Events = _PurpleCoins:WaitForChild("Events")
+
+
 ---------- Constants ----------
 
 local Constants = {}
@@ -16,8 +23,17 @@ local Constants = {}
 Constants.CoinsFolder = workspace._Workspace.CoinsFolder
 
 Constants.purpleCoinsRemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("PurpleCoinsRemoteEvent")
-Constants.onScoreChangeModeString = "On Score Change"
-Constants.setUIEnabledModeString = "Set UI Enabled"
+Constants.remoteEventStrings = {
+    onScoreChange = "On Score Change",
+    setUIEnabled = "Set UI Enabled",
+}
+table.freeze(Constants.remoteEventStrings)
+
+Constants.purpleCoinsBindableEvent = _PurpleCoins_Events:WaitForChild("PurpleCoinsBindableEvent")
+Constants.purpleCoinsBindableEventStrings = {
+    playerScoreUpdated = "Player Score Updated"
+}
+table.freeze(Constants.purpleCoinsBindableEventStrings)
 
 Constants.defaultScreenGui = script.Parent:WaitForChild("PurpleCoins_ScreenGui")
 
@@ -51,6 +67,7 @@ table.freeze(PurpleCoinsGuis)
 local onScoreChange
 local setUIEnabled
 local onPurpleCoinsClientEvent
+local onPurpleCoinsEvent
 local onClientStart
 
 
@@ -75,10 +92,16 @@ end
 ----- Event functions -----
 
 onPurpleCoinsClientEvent = function(mode: string, ...)
-    if mode == Constants.onScoreChangeModeString then
+    if mode == Constants.remoteEventStrings.onScoreChange then
         onScoreChange(...)
-    elseif mode == Constants.setUIEnabledModeString then
+    elseif mode == Constants.remoteEventStrings.setUIEnabled then
         setUIEnabled(...)
+    end
+end
+
+onPurpleCoinsEvent = function(mode: string, ...)
+    if mode == Constants.purpleCoinsBindableEventStrings.playerScoreUpdated then
+        onScoreChange(...)
     end
 end
 
@@ -87,6 +110,7 @@ end
 
 onClientStart = function()
     Constants.purpleCoinsRemoteEvent.OnClientEvent:Connect(onPurpleCoinsClientEvent)
+    Constants.purpleCoinsBindableEvent.Event:Connect(onPurpleCoinsEvent)
 end
 
 

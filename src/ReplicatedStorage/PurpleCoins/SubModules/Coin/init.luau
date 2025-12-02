@@ -5,6 +5,7 @@
 
 ---------- Services ----------
 
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
 
@@ -17,7 +18,7 @@ local UIUtil = require(script.Parent:WaitForChild("UIUtil"))
 
 local Constants = {}
 
-Constants.CoinRemoteEvent = script:WaitForChild("CoinRemoteEvent")
+Constants.coinRemoteEvent = script:WaitForChild("CoinRemoteEvent")
 Constants.remoteEventStrings = {
     updateTransparency = "Update Transparency",
     setDefaultTransparency = "Set Default Transparency",
@@ -71,7 +72,7 @@ end
 ----- Main -----
 
 local function main()
-    Constants.CoinRemoteEvent.OnServerEvent:Connect(onCoinServerEvent)
+    Constants.coinRemoteEvent.OnServerEvent:Connect(onCoinServerEvent)
     Players.PlayerRemoving:Connect(function(player: Player)
         Globals.player_connected[player] = nil
     end)
@@ -92,6 +93,8 @@ Coin.__index = Coin
 ----- Module types -----
 
 type ClassData = {
+    _uniqueId: string,
+
     _coinInstance: BasePart | Model,
     _coinValue: number,
     _isServerSided: boolean,
@@ -120,6 +123,8 @@ export type ClassType = ClassData & typeof(Coin)
 
 function Coin.new(coinInstance: BasePart | Model, coinValue: number, isServerSided: boolean, isActivated: boolean)
     local self = setmetatable({} :: any, Coin) :: ClassType
+
+    self._uniqueId = HttpService:GenerateGUID()
 
     self._coinInstance = coinInstance
     self._coinValue = coinValue
@@ -373,9 +378,9 @@ end
 -- (static) Sets multiple instances to default transparency.
 function Coin.static_setDefaultTransparency(fireAllClients: boolean, player: Player?, instances: {Instance})
     if fireAllClients then
-        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, instances)
+        Constants.coinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, instances)
     elseif player then
-        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, instances)
+        Constants.coinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, instances)
     else
         warn('[Purple Coins]: Either `fireAllClients` should be `true` or `player` should be specified.')
     end
@@ -384,9 +389,9 @@ end
 -- (static) Sets multiple instances to the specified transparency.
 function Coin.static_updateTransparency(fireAllClients: boolean, player: Player?, instances: {Instance}, transparency: number)
     if fireAllClients then
-        Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, instances, transparency)
+        Constants.coinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, instances, transparency)
     elseif player then
-        Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, instances, transparency)
+        Constants.coinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, instances, transparency)
     else
         warn('[Purple Coins]: Either `fireAllClients` should be `true` or `player` should be specified.')
     end
@@ -423,9 +428,9 @@ function Coin.updateVisual_server(self: ClassType)
     if next(Players:GetPlayers()) then
         local expectedVisual = self:getExpectedVisual_server()
         if expectedVisual == "Hidden" then
-            Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, {self._coinInstance}, 1)
+            Constants.coinRemoteEvent:FireAllClients(Constants.remoteEventStrings.updateTransparency, {self._coinInstance}, 1)
         elseif expectedVisual == "Default" then
-            Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, {self._coinInstance})
+            Constants.coinRemoteEvent:FireAllClients(Constants.remoteEventStrings.setDefaultTransparency, {self._coinInstance})
         end
     end
 end
@@ -442,9 +447,9 @@ function Coin.updateVisual_player(self: ClassType, player: Player)
         end
         local expectedVisual = self:getExpectedVisual_player(player)
         if expectedVisual == "Hidden" then
-            Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, {self._coinInstance}, 1)
+            Constants.coinRemoteEvent:FireClient(player, Constants.remoteEventStrings.updateTransparency, {self._coinInstance}, 1)
         elseif expectedVisual == "Default" then
-            Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, {self._coinInstance})
+            Constants.coinRemoteEvent:FireClient(player, Constants.remoteEventStrings.setDefaultTransparency, {self._coinInstance})
         end
     end)
 end
@@ -454,19 +459,21 @@ end
 
 -- Plays a sound from the coin on server.
 function Coin.playSound_server(self: ClassType, sound: Sound)
-    Constants.CoinRemoteEvent:FireAllClients(Constants.remoteEventStrings.playSoundFromPart, self:getOrCreatePrimaryPart(), sound)
+    Constants.coinRemoteEvent:FireAllClients(Constants.remoteEventStrings.playSoundFromPart, self:getOrCreatePrimaryPart(), sound)
 end
 
 -- Plays a sound from the coin on player.
 function Coin.playSound_player(self: ClassType, player: Player, sound: Sound)
     -- Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.playSoundFromPart, self:getOrCreatePrimaryPart(), sound)
-    Constants.CoinRemoteEvent:FireClient(player, Constants.remoteEventStrings.playSoundFromWorkspace, sound)
+    Constants.coinRemoteEvent:FireClient(player, Constants.remoteEventStrings.playSoundFromWorkspace, sound)
 end
 
 
 ----- Clean up -----
 
 function Coin.removePlayer(self: ClassType, player: Player)
+    self._client_player_isActivated[player] = nil
+    self._client_player_isVisible[player] = nil
     self._client_player_claimed[player] = nil
 end
 
@@ -475,6 +482,16 @@ function Coin.removePlayersThatLeft(self: ClassType)
     local playersToRemove = {}
     for _, player in Players:GetPlayers() do
         player_inServer[player] = true
+    end
+    for player, _ in self._client_player_isActivated do
+        if not player_inServer[player] then
+            table.insert(playersToRemove, player)
+        end
+    end
+    for player, _ in self._client_player_isVisible do
+        if not player_inServer[player] then
+            table.insert(playersToRemove, player)
+        end
     end
     for player, _ in self._client_player_claimed do
         if not player_inServer[player] then
@@ -497,6 +514,8 @@ function Coin.cleanUp(self: ClassType)
     end
     self._updatePlayerVisualThread = nil
 
+    table.clear(self._client_player_isActivated)
+    table.clear(self._client_player_isVisible)
     table.clear(self._client_player_claimed)
 end
 

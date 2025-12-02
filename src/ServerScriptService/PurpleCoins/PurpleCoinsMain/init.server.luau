@@ -62,6 +62,7 @@ createPurpleCoinsChallenge = function(challengeModule: _Constants.ChallengeModul
     wegas:setDefaultInfo(1, challengeConfigs.isServerSided, challengeConfigs.defaultIsActivated)
     -- wegas:setDefaultRotationVelocity(Vector3.new(0, math.rad(540), 0))
     -- wegas:setDefaultSound(ReplicatedStorage.Modules.PurpleCoins.Sounds.CoinCollect)
+    -- wegas:setUseClientCollision(false)
 
     wegas:addCoinsFromContainer(finalCoinsFolder, true)
     wegas:spinCoins()
@@ -83,7 +84,9 @@ createPurpleCoinsChallenge = function(challengeModule: _Constants.ChallengeModul
                 local score = wegas:getScore_player(player)
                 if player_evaluatedScore[player] ~= score then
                     player_evaluatedScore[player] = score
-                    _Constants.purpleCoinsRemoteEvent:FireClient(player, _Constants.remoteEventStrings.onScoreChange, score, totalScore)
+                    if not wegas.useClientCollision then
+                        _Constants.purpleCoinsRemoteEvent:FireClient(player, _Constants.remoteEventStrings.onScoreChange, score, totalScore)
+                    end
                     _Constants.challengeStateBindableEvent:Fire(
                         _Constants.challengeStateBindableEventStrings.playerChallengeScoreUpdate,
                         player, challengeId, score, totalScore

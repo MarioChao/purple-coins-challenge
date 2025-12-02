@@ -5,6 +5,7 @@
 
 ---------- Services ----------
 
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -29,7 +30,52 @@ Constants.default_isActivated = false
 Constants.default_coinRotationalVelocity = Vector3.new(0, math.rad(540), 0)
 Constants.default_coinCollectSound = script.Sounds.CoinCollect
 
+Constants.mainRemoteEvent = script.MainRemoteEvent
+Constants.remoteEventStrings = {
+    setUpClientCoinTouched = "Set Up Client Coin Touched",
+	setMultipleCoinsCanTouch = "Set Multiple Coins Can Touch",
+	scoreUpdated = "Score Updated",
+    clientCoinTouched = "Client Coin Touched",
+	playerConnected = "Player Connected",
+}
+table.freeze(Constants.remoteEventStrings)
+
 table.freeze(Constants)
+
+
+---------- Globals ----------
+
+local Globals = {}
+Globals.player_connected = {} :: {[Player]: boolean?}
+Globals.purpleCoinsId_purpleCoins = {} :: {[string]: ClassType}
+
+
+---------- Local functions ----------
+
+local onMainServerEvent
+
+----- Coin event -----
+
+onMainServerEvent = function(player: Player, mode: string, ...)
+    if mode == Constants.remoteEventStrings.playerConnected then
+        Globals.player_connected[player] = true
+    end
+end
+
+
+----- Main -----
+
+local function main()
+    Constants.mainRemoteEvent.OnServerEvent:Connect(onMainServerEvent)
+    Players.PlayerRemoving:Connect(function(player: Player)
+        Globals.player_connected[player] = nil
+    end)
+end
+
+
+---------- Calling function ----------
+
+task.defer(main)
 
 
 ---------- Module ----------
@@ -41,7 +87,11 @@ PurpleCoins.__index = PurpleCoins
 ----- Module types -----
 
 type ClassData = {
+	_uniqueId: string,
+
 	storedCoins: {Coin.ClassType},
+	coinId_coin: {[string]: Coin.ClassType},
+	useClientCollision: boolean,
 
 	default_coinValue: number,
 	default_isServerSided: boolean,
@@ -63,7 +113,11 @@ Constructs a new Purple Coins challenge.
 function PurpleCoins.new()
 	local self = setmetatable({} :: any, PurpleCoins) :: ClassType
 
+	self._uniqueId = HttpService:GenerateGUID()
+
 	self.storedCoins = {}
+	self.coinId_coin = {}
+	self.useClientCollision = true
 
 	self.default_coinValue = Constants.default_coinValue
 	self.default_isServerSided = Constants.default_isServerSided
@@ -73,7 +127,13 @@ function PurpleCoins.new()
 
 	self._connections = {}
 
+	Globals.purpleCoinsId_purpleCoins[self._uniqueId] = self
+
 	return self
+end
+
+function PurpleCoins.static_getPurpleCoinsFromId(purpleCoinsId: string)
+	return Globals.purpleCoinsId_purpleCoins[purpleCoinsId]
 end
 
 function PurpleCoins.setDefaultInfo(self: ClassType, default_coinValue: number, default_isServerSided: boolean, default_isActivated: boolean)
@@ -88,6 +148,10 @@ end
 
 function PurpleCoins.setDefaultSound(self: ClassType, default_coinCollectSound: Sound)
 	self.default_coinCollectSound = default_coinCollectSound
+end
+
+function PurpleCoins.setUseClientCollision(self: ClassType, useClientCollision: boolean)
+	self.useClientCollision = useClientCollision
 end
 
 
@@ -105,6 +169,7 @@ function PurpleCoins.addCoin(self: ClassType, object: Instance)
 			(object:GetAttribute("Activated") == true) or self.default_isActivated
 		)
 		table.insert(self.storedCoins, coin)
+		self.coinId_coin[coin._uniqueId] = coin
 		success = true
 	end
 	return success
@@ -148,6 +213,7 @@ function PurpleCoins.setCoinsActivated_player(self: ClassType, player: Player, i
 	for _, coin in self.storedCoins do
 		coin:setActivated_player(player, isActivated)
 	end
+	self:_updateClientCanTouch(player)
 end
 
 -- Sets the visible state of all currently stored coins on server.
@@ -218,6 +284,8 @@ function PurpleCoins.unclaimAllCoins_player(self: ClassType, player: Player)
 		coin:setClaimed_player(player, false, false)
 	end
 	self:updateVisual_player(player)
+	self:_updateClientCanTouch(player)
+	self:_updateClientScore(player)
 end
 
 -- Removes all stored coins.
@@ -250,30 +318,140 @@ function PurpleCoins.getScore_player(self: ClassType, player: Player): number
 end
 
 
+----- Touched -----
+
+function PurpleCoins._connectClientTouched(self: ClassType, player: Player)
+	if not self.useClientCollision then
+		return
+	end
+
+	task.defer(function()
+		local startTime = time()
+		while not Globals.player_connected[player] and time() - startTime < 5 do
+			task.wait()
+		end
+		for _, coin in self.storedCoins do
+			task.defer(function()
+				Constants.mainRemoteEvent:FireClient(
+					player, Constants.remoteEventStrings.setUpClientCoinTouched,
+					self._uniqueId, coin._uniqueId,
+					{
+						coinInstance = coin._coinInstance,
+						coinParts = coin._coinParts,
+						coinCollectSound = self.default_coinCollectSound,
+						coinValue = coin._coinValue,
+						totalScore = #self.storedCoins,
+					}
+				)
+			end)
+		end
+		self:_updateClientCanTouch(player)
+	end)
+end
+
+function PurpleCoins._updateClientCanTouch(self: ClassType, player: Player)
+	if not self.useClientCollision then
+		return
+	end
+
+	local coinIds = {
+		canTouch = {},
+		canNotTouch = {},
+	}
+	for _, coin in self.storedCoins do
+		if coin:checkActivated_player(player) and not coin:checkClaimed_player(player) then
+			table.insert(coinIds.canTouch, coin._uniqueId)
+		else
+			table.insert(coinIds.canNotTouch, coin._uniqueId)
+		end
+	end
+	Constants.mainRemoteEvent:FireClient(player, Constants.remoteEventStrings.setMultipleCoinsCanTouch, self._uniqueId, coinIds.canTouch, true)
+	Constants.mainRemoteEvent:FireClient(player, Constants.remoteEventStrings.setMultipleCoinsCanTouch, self._uniqueId, coinIds.canNotTouch, false)
+end
+
+function PurpleCoins._onClientCoinTouched(self: ClassType, player: Player, coinId: string)
+	if not self.useClientCollision then
+		return
+	end
+
+	-- Get coin
+	local coin = self.coinId_coin[coinId]
+
+	-- Simple validation
+	local isValid = true
+	isValid = isValid and coin:checkActivated_player(player)
+	isValid = isValid and not coin:checkClaimed_player(player)
+	if isValid then
+		-- Disable client can touch
+		if coin._isServerSided then
+			Constants.mainRemoteEvent:FireAllClients(Constants.remoteEventStrings.setMultipleCoinsCanTouch, self._uniqueId, {coinId}, false)
+		end
+	
+		-- Regular touched
+		self:_onValidCoinTouched(player, coin)
+	end
+end
+
+function PurpleCoins._onValidCoinTouched(self: ClassType, player: Player, coin: Coin.ClassType)
+	if not self.useClientCollision then
+		coin:setClaimed_player(player, true, true)
+		if coin._isServerSided then
+			coin:playSound_server(self.default_coinCollectSound)
+		else
+			coin:playSound_player(player, self.default_coinCollectSound)
+		end
+	else
+		coin:setClaimed_player(player, true, true)
+		if coin._isServerSided then
+			for _, otherPlayer in Players:GetPlayers() do
+				if otherPlayer ~= player and Globals.player_connected[otherPlayer] then
+					self:_updateClientScore(otherPlayer)
+				end
+			end
+		end
+	end
+end
+
+function PurpleCoins._updateClientScore(self: ClassType, player: Player)
+	local score = self:getScore_player(player)
+	local totalScore = #self.storedCoins
+	Constants.mainRemoteEvent:FireClient(player, Constants.remoteEventStrings.scoreUpdated, self._uniqueId, score, totalScore)
+end
+
+
 ----- Connection functions -----
 
 function PurpleCoins.connect(self: ClassType)
 	-- Claim on touch
-	for _, coin in self.storedCoins do
-		for _, part in coin._coinParts do
-			table.insert(self._connections, part.Touched:Connect(function(otherPart: BasePart)
-				local character = otherPart.Parent
-				local player = character and Players:GetPlayerFromCharacter(character)
-				if not (character and player) then return end
-
-				local isValid = true
-				isValid = isValid and coin:checkActivated_player(player)
-				isValid = isValid and not coin:checkClaimed_player(player)
-				isValid = isValid and coin:checkPlayerTouched_distanceCheck(player)
-				if isValid then
-					coin:setClaimed_player(player, true, true)
-					if coin._isServerSided then
-						coin:playSound_server(self.default_coinCollectSound)
-					else
-						coin:playSound_player(player, self.default_coinCollectSound)
+	if self.useClientCollision then
+		local initialPlayers = Players:GetPlayers()
+		task.defer(function()
+			for _, player in initialPlayers do
+				task.defer(function()
+					self:_connectClientTouched(player)
+				end)
+			end
+		end)
+		table.insert(self._connections, Players.PlayerAdded:Connect(function(player: Player)
+			self:_connectClientTouched(player)
+		end))
+	else
+		for _, coin in self.storedCoins do
+			for _, part in coin._coinParts do
+				table.insert(self._connections, part.Touched:Connect(function(otherPart: BasePart)
+					local character = otherPart.Parent
+					local player = character and Players:GetPlayerFromCharacter(character)
+					if not (character and player) then return end
+	
+					local isValid = true
+					isValid = isValid and coin:checkActivated_player(player)
+					isValid = isValid and not coin:checkClaimed_player(player)
+					isValid = isValid and coin:checkPlayerTouched_distanceCheck(player)
+					if isValid then
+						self:_onValidCoinTouched(player, coin)
 					end
-				end
-			end))
+				end))
+			end
 		end
 	end
 

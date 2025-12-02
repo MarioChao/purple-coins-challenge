@@ -1,6 +1,6 @@
 --!strict
 
--- Main Client
+-- Main Client (Coin)
 
 
 ---------- Imports ----------
@@ -12,7 +12,7 @@ local UIUtil = require(script.Parent.Parent:WaitForChild("UIUtil"))
 
 local Constants = {}
 
-Constants.CoinRemoteEvent = script.Parent:WaitForChild("CoinRemoteEvent")
+Constants.coinRemoteEvent = script.Parent:WaitForChild("CoinRemoteEvent")
 Constants.remoteEventStrings = {
     updateTransparency = "Update Transparency",
     setDefaultTransparency = "Set Default Transparency",
@@ -20,6 +20,16 @@ Constants.remoteEventStrings = {
     playSoundFromWorkspace = "Play Sound From Workspace",
     playerConnected = "Player Connected",
 }
+table.freeze(Constants.remoteEventStrings)
+
+Constants.coinBindableEvent = script.Parent:WaitForChild("CoinBindableEvent")
+Constants.bindableEventStrings = {
+    updateTransparency = "Update Transparency",
+    setDefaultTransparency = "Set Default Transparency",
+    playSoundFromPart = "Play Sound From Part",
+    playSoundFromWorkspace = "Play Sound From Workspace",
+}
+table.freeze(Constants.bindableEventStrings)
 
 Constants.fadeTweenInfo = TweenInfo.new(0.2)
 
@@ -28,12 +38,13 @@ table.freeze(Constants)
 
 --------- Local functions ---------
 
-local onClientStart
-local onCoinClientEvent
 local updateTransparency
 local setDefaultTransparency
 local playSoundFromPart
 local playSoundFromWorkspace
+local onCoinClientEvent
+local onCoinEvent
+local onClientStart
 
 
 ----- Visual functions -----
@@ -92,12 +103,25 @@ onCoinClientEvent = function(mode: string, ...)
     end
 end
 
+onCoinEvent = function(mode: string, ...)
+    if mode == Constants.bindableEventStrings.updateTransparency then
+        updateTransparency(...)
+    elseif mode == Constants.bindableEventStrings.setDefaultTransparency then
+        setDefaultTransparency(...)
+    elseif mode == Constants.bindableEventStrings.playSoundFromPart then
+        playSoundFromPart(...)
+    elseif mode == Constants.bindableEventStrings.playSoundFromWorkspace then
+        playSoundFromWorkspace(...)
+    end
+end
+
 
 ----- Main function -----
 
 onClientStart = function()
-    Constants.CoinRemoteEvent.OnClientEvent:Connect(onCoinClientEvent)
-    Constants.CoinRemoteEvent:FireServer(Constants.remoteEventStrings.playerConnected)
+    Constants.coinRemoteEvent.OnClientEvent:Connect(onCoinClientEvent)
+    Constants.coinRemoteEvent:FireServer(Constants.remoteEventStrings.playerConnected)
+    Constants.coinBindableEvent.Event:Connect(onCoinEvent)
 end
 
 

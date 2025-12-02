@@ -1,7 +1,7 @@
 --!strict
 
 
----------- Global variables ----------
+---------- Globals ----------
 
 local Globals = {}
 Globals.className_hasProperty = {} :: {[string]: {[string]: boolean?}}

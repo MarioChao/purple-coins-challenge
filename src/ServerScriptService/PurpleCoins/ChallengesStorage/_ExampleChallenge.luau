@@ -30,7 +30,7 @@ table.freeze(Constants)
 table.freeze(Constants.configurations)
 
 
----------- Global variables ----------
+---------- Globals ----------
 
 local Globals = {}
 Globals.player_evaluatedScore = {}
