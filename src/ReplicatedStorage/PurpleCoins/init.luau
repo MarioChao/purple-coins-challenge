@@ -46,7 +46,11 @@ table.freeze(Constants)
 ---------- Globals ----------
 
 local Globals = {}
+
 Globals.player_connected = {} :: {[Player]: boolean?}
+Globals.playerConnectedBindableEvent = Instance.new("BindableEvent")
+Globals.playerConnected = Globals.playerConnectedBindableEvent.Event
+
 Globals.purpleCoinsId_purpleCoins = {} :: {[string]: ClassType}
 
 
@@ -54,11 +58,13 @@ Globals.purpleCoinsId_purpleCoins = {} :: {[string]: ClassType}
 
 local onMainServerEvent
 
+
 ----- Coin event -----
 
 onMainServerEvent = function(player: Player, mode: string, ...)
     if mode == Constants.remoteEventStrings.playerConnected then
         Globals.player_connected[player] = true
+		Globals.playerConnectedBindableEvent:Fire(player)
     end
 end
 
@@ -99,6 +105,7 @@ type ClassData = {
 	default_coinRotationalVelocity: Vector3,
 	default_coinCollectSound: Sound,
 
+	_isSpinning: boolean,
 	_connections: {RBXScriptConnection},
 }
 
@@ -125,6 +132,7 @@ function PurpleCoins.new()
 	self.default_coinRotationalVelocity = Constants.default_coinRotationalVelocity
 	self.default_coinCollectSound = Constants.default_coinCollectSound
 
+	self._isSpinning = false
 	self._connections = {}
 
 	Globals.purpleCoinsId_purpleCoins[self._uniqueId] = self
@@ -185,11 +193,23 @@ function PurpleCoins.addCoinsFromContainer(self: ClassType, container: Instance,
 	end
 end
 
--- Spins all currently stored coins.
-function PurpleCoins.spinCoins(self: ClassType)
+-- Spins all currently stored coins on server.
+function PurpleCoins.spinCoins_server(self: ClassType)
+	local coinInstances = {} :: {Instance}
 	for _, coin in self.storedCoins do
-		coin:spin(self.default_coinRotationalVelocity)
+		table.insert(coinInstances, coin._coinInstance)
 	end
+	self._isSpinning = true
+	Coin.static_spin(true, nil, coinInstances, self.default_coinRotationalVelocity)
+end
+
+-- Spins all currently stored coins on player.
+function PurpleCoins.spinCoins_player(self: ClassType, player: Player)
+	local coinInstances = {} :: {Instance}
+	for _, coin in self.storedCoins do
+		table.insert(coinInstances, coin._coinInstance)
+	end
+	Coin.static_spin(false, player, coinInstances, self.default_coinRotationalVelocity)
 end
 
 -- Sets the collision of all currently stored coins.
@@ -432,7 +452,7 @@ function PurpleCoins.connect(self: ClassType)
 				end)
 			end
 		end)
-		table.insert(self._connections, Players.PlayerAdded:Connect(function(player: Player)
+		table.insert(self._connections, Globals.playerConnected:Connect(function(player: Player)
 			self:_connectClientTouched(player)
 		end))
 	else
@@ -456,8 +476,15 @@ function PurpleCoins.connect(self: ClassType)
 	end
 
 	-- Update visual for new players
-	table.insert(self._connections, Players.PlayerAdded:Connect(function(player: Player)
+	table.insert(self._connections, Globals.playerConnected:Connect(function(player: Player)
 		self:updateVisual_player(player)
+	end))
+
+	-- Spin coins for new players
+	table.insert(self._connections, Globals.playerConnected:Connect(function(player: Player)
+		if self._isSpinning then
+			self:spinCoins_player(player)
+		end
 	end))
 
 	-- Remove data for players that left

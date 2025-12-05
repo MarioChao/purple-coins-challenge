@@ -20,6 +20,7 @@ local Constants = {}
 
 Constants.coinRemoteEvent = script:WaitForChild("CoinRemoteEvent")
 Constants.remoteEventStrings = {
+    spinInstancesAtVelocity = "Spin Instances At Velocity",
     updateTransparency = "Update Transparency",
     setDefaultTransparency = "Set Default Transparency",
     playSoundFromPart = "Play Sound From Part",
@@ -112,7 +113,6 @@ type ClassData = {
     _server_claimed: boolean,
     _client_player_claimed: {[Player]: boolean?},
 
-    _spinThread: thread?,
     _updatePlayerVisualThread: thread?,
 }
 
@@ -144,7 +144,6 @@ function Coin.new(coinInstance: BasePart | Model, coinValue: number, isServerSid
     self._server_claimed = false
     self._client_player_claimed = {}
 
-    self._spinThread = nil
     self._updatePlayerVisualThread = nil
 
     UIUtil.resetTransparency(self._coinInstance)
@@ -346,30 +345,18 @@ end
 
 -- Spins the coin's root part.
 function Coin.spin(self: ClassType, rotationalVelocity: Vector3)
-    if self._spinThread then
-        task.cancel(self._spinThread)
+    Constants.coinRemoteEvent:FireAllClients(Constants.remoteEventStrings.spinInstancesAtVelocity, {self._coinInstance}, rotationalVelocity)
+end
+
+-- (static) Spins multiple instances.
+function Coin.static_spin(fireAllClients: boolean, player: Player?, instances: {Instance}, rotationalVelocity: Vector3)
+    if fireAllClients then
+        Constants.coinRemoteEvent:FireAllClients(Constants.remoteEventStrings.spinInstancesAtVelocity, instances, rotationalVelocity)
+    elseif player then
+        Constants.coinRemoteEvent:FireClient(player, Constants.remoteEventStrings.spinInstancesAtVelocity, instances, rotationalVelocity)
+    else
+        warn('[Purple Coins]: Either `fireAllClients` should be `true` or `player` should be specified.')
     end
-	self._spinThread = task.defer(function()
-        local primaryPart = self:getOrCreatePrimaryPart()
-        while true do
-            -- Get primary part position (similar to :GetPivot() but better for type checking)
-            local position = primaryPart.Position
-
-            -- Set rotation
-            local rotationVector = rotationalVelocity * time()
-            local targetCFrame = CFrame.Angles(rotationVector.X, rotationVector.Y, rotationVector.Z) + position
-            if self._coinInstance:IsA("BasePart") then
-                self._coinInstance:PivotTo(targetCFrame)
-            elseif self._coinInstance:IsA("Model") then
-                local pivotCFrame = self._coinInstance:GetPivot()
-                local targetPivotCFrame = targetCFrame + (pivotCFrame.Position - position)
-                self._coinInstance:PivotTo(targetPivotCFrame)
-            end
-
-            -- Small delay (equivalent to RunService.Heartbeat:Wait())
-            task.wait()
-        end
-    end)
 end
 
 
@@ -504,11 +491,6 @@ function Coin.removePlayersThatLeft(self: ClassType)
 end
 
 function Coin.cleanUp(self: ClassType)
-    if self._spinThread then
-        task.cancel(self._spinThread)
-    end
-    self._spinThread = nil
-
     if self._updatePlayerVisualThread then
         task.cancel(self._updatePlayerVisualThread)
     end

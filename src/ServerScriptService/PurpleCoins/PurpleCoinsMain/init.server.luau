@@ -65,7 +65,7 @@ createPurpleCoinsChallenge = function(challengeModule: _Constants.ChallengeModul
     -- wegas:setUseClientCollision(false)
 
     wegas:addCoinsFromContainer(finalCoinsFolder, true)
-    wegas:spinCoins()
+    wegas:spinCoins_server()
     wegas:setCoinsCanCollide(false)
 
     wegas:connect()

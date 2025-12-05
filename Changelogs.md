@@ -1,5 +1,11 @@
 # Changelogs
 
+## [v0.0.6] Client-sided spinning + Small fixes | 2025/12/05
+
+Made coin spinning client sided, which decreases server & replication lag and improves overall performance.
+
+Replaced usages of `Players.PlayerAdded` to a `playerConnected` Bindable event.
+
 ## [v0.0.5] Client-sided collision & mechanism | 2025/12/02
 
 Added an option for client-sided collision check (enabled by default).
